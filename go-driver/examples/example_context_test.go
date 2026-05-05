@@ -1,0 +1,65 @@
+//
+// DISCLAIMER
+//
+// Copyright 2017-2023 ArangoDB GmbH, Cologne, Germany
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+// Copyright holder is ArangoDB GmbH, Cologne, Germany
+//
+
+//go:build !auth
+
+package examples
+
+import (
+	"context"
+	"time"
+
+	driver "github.com/arangodb/go-driver"
+)
+
+func ExampleWithRevision() {
+	var sampleCollection driver.Collection
+	var result Book
+
+	// Using WithRevision we get an error when the current revision of the document is different.
+	ctx := driver.WithRevision(context.Background(), "a-specific-revision")
+	if _, err := sampleCollection.ReadDocument(ctx, "someValidKey", &result); err != nil {
+		// This call will fail when a document does not exist, or when its current revision is different.
+	}
+}
+
+func ExampleWithSilent() {
+	var sampleCollection driver.Collection
+	var result Book
+
+	// Using WithSilent we do not care about any returned meta data.
+	ctx := driver.WithSilent(context.Background())
+	if _, err := sampleCollection.ReadDocument(ctx, "someValidKey", &result); err != nil {
+		// No meta data is returned
+	}
+}
+
+func ExampleWithArangoQueueTime() {
+	var sampleCollection driver.Collection
+	var result Book
+
+	// Using WithArangoQueueTimeout we get Timout error if not response after time specified in WithArangoQueueTime
+	ctx := driver.WithArangoQueueTimeout(context.Background(), true)
+	ctx = driver.WithArangoQueueTime(ctx, time.Second*5)
+
+	if _, err := sampleCollection.ReadDocument(ctx, "someValidKey", &result); err != nil {
+		// This call will fail if no response after 5 sec
+	}
+}
