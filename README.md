@@ -1,17 +1,20 @@
 # nim-arango
 
-A modern, type-safe ArangoDB driver for Nim.
+A modern, type-safe **ArangoDB driver for Nim**.
 
 ## Features
 
-- **Type-safe documents** with Nim generics — `readDocument[User](key)`
-- **Fluent query builder** with method chaining
-- **Connection pooling** via `std/httpclient`
-- **Retry with exponential backoff** built-in
-- **Graph, View, Index, Analyzer** APIs
-- **Streaming transactions** support
-- **Pregel** distributed graph analytics
-- **Foxx** microservice management
+- **Type-safe documents** with Nim generics — `readDocument[User](key)` returns `Document[User]`
+- **Fluent query builder** with method chaining and AQL parameter binding
+- **Connection pooling** via `std/httpclient` with keep-alive
+- **Retry with exponential backoff** — configurable per-client
+- **Graph API** — traversals, edge definitions, vertex collections
+- **ArangoSearch Views** — full-text search configuration
+- **Index management** — persistent, geo, TTL, inverted, and more
+- **Streaming transactions** — ACID across multiple operations
+- **Pregel** — distributed graph analytics
+- **Foxx** — microservice management
+- **User management** — permissions and access control
 
 ## Installation
 
@@ -47,13 +50,14 @@ let users = db.createCollection("users")
 let meta = users.createDocument(User(name: "Alice", email: "alice@example.com", age: 30))
 echo "Created: ", meta.key
 
-# Read
+# Read (type-safe!)
 let doc = users.readDocument[User](meta.key)
-echo "Read: ", doc.data.name
+echo "Read: ", doc.data.name, " (", doc.data.age, ")"
 
-# Query
+# Query with parameters
 let cursor = db.query("FOR u IN users FILTER u.age > @age RETURN u")
   .bindParam("age", 18)
+  .batchSize(100)
   .exec[User]()
 
 while cursor.next():
@@ -62,38 +66,6 @@ while cursor.next():
 
 cursor.close()
 client.close()
-```
-
-## Architecture
-
-```
-nim-arango/
-├── src/
-│   └── nim_arango/
-│       ├── transport.nim      # Base transport + Request/Response
-│       ├── transport/
-│       │   ├── http.nim       # HTTP transport with keep-alive
-│       │   └── retry.nim      # Retry wrapper
-│       ├── auth.nim           # Basic, JWT, Raw auth
-│       ├── errors.nim         # ArangoError types
-│       ├── options.nim        # Functional options pattern
-│       ├── types.nim          # Core type definitions
-│       ├── client.nim         # Client API
-│       ├── database.nim       # Database API
-│       ├── collection.nim     # Collection API
-│       ├── document.nim       # Document CRUD with generics
-│       ├── query.nim          # AQL query builder + Cursor[T]
-│       ├── graph.nim          # Graph API
-│       ├── view.nim           # ArangoSearch views
-│       ├── index.nim          # Index management
-│       ├── analyzer.nim       # Text analyzers
-│       ├── pregel.nim         # Pregel jobs
-│       └── foxx.nim           # Foxx services
-├── examples/
-│   └── crud.nim               # CRUD example
-├── tests/
-│   └── test_transport.nim     # Unit tests
-└── ROADMAP.md                 # Development roadmap
 ```
 
 ## API Overview
@@ -132,17 +104,17 @@ users.updateDocument(meta.key, User(name: "Alice Updated", age: 31))
 users.replaceDocument(meta.key, User(name: "Bob", age: 25))
 users.removeDocument(meta.key)
 
-# Bulk
+# Bulk insert
 let metas = users.createDocuments(@[u1, u2, u3])
 ```
 
 ### Query
 
 ```nim
-let cursor = db.query("FOR u IN users FILTER u.age > @age RETURN u")
-  .bindParam("age", 18)
-  .batchSize(100)
-  .exec[User]()
+let cursor = db.query("FOR p IN products FILTER p.price > @min RETURN p")
+  .bindParam("min", 10.0)
+  .fullCount()
+  .exec[Product]()
 
 let all = cursor.all()
 cursor.close()
@@ -152,10 +124,14 @@ cursor.close()
 
 ```nim
 let g = db.createGraph("social", @[
-  EdgeDefinition(collection: "follows", fromCollections: @["users"], toCollections: @["users"])
+  EdgeDefinition(
+    collection: "follows",
+    fromCollections: @["people"],
+    toCollections: @["people"]
+  )
 ])
 
-let cursor = g.traversal[User]("users/alice",
+let cursor = g.traversal[Person]("people/alice",
   withDirection("outbound"),
   withMaxDepth(3)
 )
@@ -173,8 +149,34 @@ discard col.createTTLIndex("createdAt", 3600)
 
 ```nim
 let view = db.createArangoSearchView("searchView",
-  withLinks(%*{"users": {"fields": {"name": {"analyzers": ["text_en"]}}}})
+  withLinks(%*{ "users": { "fields": { "name": { "analyzers": ["text_en"] }}})
 )
+```
+
+## Project Structure
+
+```
+src/nim_arango/
+├── transport.nim       # Base transport + Request/Response
+├── transport/
+│   ├── http.nim        # HTTP transport with keep-alive
+│   └── retry.nim       # Retry wrapper with backoff
+├── auth.nim            # Basic, JWT, Raw authentication
+├── errors.nim          # ArangoError types and codes
+├── options.nim         # Functional options pattern
+├── types.nim           # Core type definitions
+├── client.nim          # Client API
+├── database.nim        # Database API
+├── collection.nim      # Collection API
+├── document.nim        # Document CRUD with generics
+├── query.nim           # AQL query builder + Cursor[T]
+├── graph.nim           # Graph API
+├── view.nim            # ArangoSearch views
+├── index.nim           # Index management
+├── analyzer.nim        # Text analyzers
+├── pregel.nim          # Pregel jobs
+├── foxx.nim            # Foxx services
+└── user.nim            # User management
 ```
 
 ## Testing
@@ -185,7 +187,7 @@ nimble test
 
 ## Roadmap
 
-See [ROADMAP.md](ROADMAP.md) for detailed development phases.
+See [ROADMAP.md](ROADMAP.md) for the full development plan.
 
 ## License
 

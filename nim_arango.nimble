@@ -9,5 +9,13 @@ srcDir        = "src"
 # Dependencies
 requires "nim >= 2.0.0"
 
+# Tasks
+task test, "Run tests":
+  exec "nim c -r tests/test_transport.nim"
+
 task check, "Check compilation":
   exec "nim check src/nim_arango.nim"
+
+task examples, "Build examples":
+  exec "nim c examples/crud.nim"
+  exec "nim c examples/query.nim"

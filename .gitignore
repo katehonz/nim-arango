@@ -1,0 +1,29 @@
+# Ignore Go driver reference (it's a separate upstream project)
+go-driver/
+
+# Nim build artifacts
+*.exe
+*.dll
+*.so
+*.dylib
+nimcache/
+*.ndb
+
+# Test binaries
+*.test
+tests/test_transport
+tests/test_client
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
