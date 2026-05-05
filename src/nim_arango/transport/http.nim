@@ -17,6 +17,8 @@ type
     userAgent: string
     driverInfo: string
     closed: bool
+    activeConnections: int
+    totalConnections: int
 
 proc newHttpTransport*(endpoints: seq[string], timeout: int = 30000, userAgent = "nim-arango-driver/0.1.0"): HttpTransport =
   if endpoints.len == 0:
@@ -78,6 +80,12 @@ method execute*(ht: HttpTransport, ctx: pointer, req: Request): transport.Respon
 
   let startTime = getTime()
   var resp: transport.Response
+
+  # Track active connections
+  inc ht.activeConnections
+  let poolGauge = getOrCreateGauge("nim_arango_connection_pool_active")
+  poolGauge.set(ht.activeConnections.float64)
+
   try:
     let httpResp = ht.client.request(fullUrl, httpMethod = verbToHttpMethod(req.verb), body = req.body)
     let statusCode = httpResp.code.int
@@ -110,6 +118,9 @@ method execute*(ht: HttpTransport, ctx: pointer, req: Request): transport.Respon
     let errCounter = getOrCreateCounter("nim_arango_request_errors_total")
     errCounter.inc()
     raise newException(ValueError, "http: request failed: " & e.msg)
+  finally:
+    dec ht.activeConnections
+    poolGauge.set(ht.activeConnections.float64)
 
   # Restore original headers
   ht.client.headers = originalHeaders
@@ -122,9 +133,15 @@ method protocol*(ht: HttpTransport): Protocol = protHTTP
 method close*(ht: HttpTransport) =
   ht.closed = true
   ht.client.close()
+  let poolGauge = getOrCreateGauge("nim_arango_connection_pool_active")
+  poolGauge.set(0)
 
 proc setUserAgent*(ht: HttpTransport, ua: string) =
   ht.userAgent = ua
 
 proc setDriverInfo*(ht: HttpTransport, info: string) =
   ht.driverInfo = info
+
+proc connPoolSize*(ht: HttpTransport): int =
+  ## Get current active connection count.
+  result = ht.activeConnections

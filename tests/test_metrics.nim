@@ -1,4 +1,4 @@
-import std/[unittest]
+import std/[unittest, strutils]
 import ../src/nim_arango/metrics
 
 suite "Metrics":
@@ -31,4 +31,28 @@ suite "Metrics":
   test "render metrics":
     discard getOrCreateCounter("render_test2")
     let output = renderMetrics()
-    check output.len > "render_test2".len
+    check output.contains("render_test2")
+
+suite "Gauge":
+  test "gauge set and increment":
+    let g = newGauge("test_gauge")
+    check g.value == 0.0
+    g.set(5.5)
+    check g.value == 5.5
+    g.inc(1.5)
+    check g.value == 7.0
+    g.dec(2.0)
+    check g.value == 5.0
+
+  test "gauge getOrCreate":
+    let g1 = getOrCreateGauge("registry_gauge")
+    g1.set(10.0)
+    let g2 = getOrCreateGauge("registry_gauge")
+    check g2.value == 10.0
+
+  test "render metrics includes gauges":
+    let g = getOrCreateGauge("render_gauge")
+    g.set(3.14)
+    let output = renderMetrics()
+    check output.contains("render_gauge")
+    check output.contains("3.14")

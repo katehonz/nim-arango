@@ -48,8 +48,10 @@
 - [ ] VST протокол поддръжка (complex, low priority)
 
 ### Приоритет 3 — След release
-- [ ] Connection pool metrics
-- [ ] Benchmarks vs Go driver
+- [x] Connection pool metrics (Gauge type, active connections, retries)
+- [x] Replication batch + revision sync API
+- [x] Backup transfer API (upload, download, progress)
+- [x] Benchmarks (CRUD, query, bulk, ORM) — `nimble bench`
 - [ ] Nimble package registry publish
 
 ---

@@ -48,8 +48,12 @@ proc deleteBackup*(c: Client, id: string, force: bool = false) =
   }
   discard c.doRequestJson("POST", "_admin/backup/delete", $body)
 
-proc listBackups*(c: Client): seq[BackupInfo] =
-  let j = c.doRequestJson("POST", "_admin/backup/list", "{}")
+proc listBackups*(c: Client, id: string = ""): seq[BackupInfo] =
+  ## List all backups, optionally filtered by backup ID.
+  var body = newJObject()
+  if id.len > 0:
+    body["id"] = %id
+  let j = c.doRequestJson("POST", "_admin/backup/list", $body)
   result = @[]
   if j.hasKey("result") and j["result"].hasKey("list"):
     for k, v in j["result"]["list"]:
@@ -63,3 +67,33 @@ proc listBackups*(c: Client): seq[BackupInfo] =
         available: v{"available"}.getBool(true),
         potentiallyInconsistent: v{"potentiallyInconsistent"}.getBool(false),
       ))
+
+# --- Backup Transfer API (Enterprise) ---
+
+proc uploadBackup*(c: Client, id: string, remoteRepository: string,
+                    config: JsonNode = newJObject()): JsonNode =
+  ## Upload a backup to a remote repository.
+  var body = %*{
+    "id": id,
+    "remoteRepository": remoteRepository,
+    "config": config,
+  }
+  result = c.doRequestJson("POST", "_admin/backup/upload", $body)
+
+proc downloadBackup*(c: Client, id: string, remoteRepository: string,
+                      config: JsonNode = newJObject()): JsonNode =
+  ## Download a backup from a remote repository.
+  var body = %*{
+    "id": id,
+    "remoteRepository": remoteRepository,
+    "config": config,
+  }
+  result = c.doRequestJson("POST", "_admin/backup/download", $body)
+
+proc backupTransferProgress*(c: Client, jobId: string): JsonNode =
+  ## Poll progress of a backup upload/download transfer job.
+  result = c.doRequestJson("GET", "_admin/backup/transfer/" & jobId)
+
+proc abortTransferJob*(c: Client, jobId: string) =
+  ## Abort an in-progress backup transfer job.
+  discard c.doRequestJson("DELETE", "_admin/backup/transfer/" & jobId)

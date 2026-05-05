@@ -1,7 +1,7 @@
 ## Retry transport wrapper with exponential backoff and jitter.
 
 import std/[random, times, math, os]
-import ../transport
+import ../transport, ../metrics
 
 type
   RetryConfig* = object
@@ -30,7 +30,12 @@ proc sleepWithBackoff(attempt: int, cfg: RetryConfig) =
 
 method execute*(rt: RetryTransport, ctx: pointer, req: Request): transport.Response =
   var lastError: ref CatchableError
+  var retryCount = 0
   for attempt in 0 ..< rt.cfg.maxRetries + 1:
+    if attempt > 0:
+      retryCount += 1
+      let retryCounter = getOrCreateCounter("nim_arango_retries_total")
+      retryCounter.inc()
     try:
       let resp = rt.inner.execute(ctx, req)
       if resp.statusCode >= 200 and resp.statusCode < 300:
@@ -44,7 +49,7 @@ method execute*(rt: RetryTransport, ctx: pointer, req: Request): transport.Respo
     if attempt < rt.cfg.maxRetries:
       sleepWithBackoff(attempt, rt.cfg)
 
-  raise newException(ValueError, "retry: all attempts failed: " & lastError.msg)
+  raise newException(ValueError, "retry: all attempts failed (" & $retryCount & " retries): " & lastError.msg)
 
 method endpoints*(rt: RetryTransport): seq[string] = rt.inner.endpoints()
 

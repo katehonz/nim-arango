@@ -8,6 +8,11 @@ type
     value*: int64
     labels*: Table[string, string]
 
+  Gauge* = ref object
+    name*: string
+    value*: float64
+    labels*: Table[string, string]
+
   Histogram* = ref object
     name*: string
     buckets*: seq[float]
@@ -17,6 +22,7 @@ type
 
   MetricsRegistry* = ref object
     counters*: Table[string, Counter]
+    gauges*: Table[string, Gauge]
     histograms*: Table[string, Histogram]
 
 var defaultRegistry*: MetricsRegistry
@@ -24,6 +30,7 @@ var defaultRegistry*: MetricsRegistry
 proc initMetrics*() =
   defaultRegistry = MetricsRegistry(
     counters: initTable[string, Counter](),
+    gauges: initTable[string, Gauge](),
     histograms: initTable[string, Histogram](),
   )
 
@@ -32,6 +39,18 @@ proc newCounter*(name: string, labels: Table[string, string] = initTable[string,
 
 proc inc*(c: Counter, amount: int64 = 1) =
   c.value += amount
+
+proc newGauge*(name: string, labels: Table[string, string] = initTable[string, string]()): Gauge =
+  Gauge(name: name, value: 0.0, labels: labels)
+
+proc set*(g: Gauge, value: float64) =
+  g.value = value
+
+proc inc*(g: Gauge, amount: float64 = 1.0) =
+  g.value += amount
+
+proc dec*(g: Gauge, amount: float64 = 1.0) =
+  g.value -= amount
 
 proc newHistogram*(name: string, buckets: seq[float], labels: Table[string, string] = initTable[string, string]()): Histogram =
   var counts = newSeq[int64](buckets.len)
@@ -54,6 +73,14 @@ proc getOrCreateCounter*(name: string, labels: Table[string, string] = initTable
     defaultRegistry.counters[key] = newCounter(name, labels)
   result = defaultRegistry.counters[key]
 
+proc getOrCreateGauge*(name: string, labels: Table[string, string] = initTable[string, string]()): Gauge =
+  if defaultRegistry == nil:
+    initMetrics()
+  let key = name
+  if key notin defaultRegistry.gauges:
+    defaultRegistry.gauges[key] = newGauge(name, labels)
+  result = defaultRegistry.gauges[key]
+
 proc getOrCreateHistogram*(name: string, buckets: seq[float], labels: Table[string, string] = initTable[string, string]()): Histogram =
   if defaultRegistry == nil:
     initMetrics()
@@ -69,6 +96,9 @@ proc renderMetrics*(): string =
   for _, c in defaultRegistry.counters:
     lines.add &"# TYPE {c.name} counter"
     lines.add &"{c.name} {c.value}"
+  for _, g in defaultRegistry.gauges:
+    lines.add &"# TYPE {g.name} gauge"
+    lines.add &"{g.name} {g.value}"
   for _, h in defaultRegistry.histograms:
     lines.add &"# TYPE {h.name} histogram"
     for i, b in h.buckets:

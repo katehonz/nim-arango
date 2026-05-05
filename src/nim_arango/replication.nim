@@ -91,3 +91,62 @@ proc replicationDump*(c: Client, collection: string, fromTick: string = "", chun
   if fromTick.len > 0: path &= "&from=" & fromTick
   if chunkSize > 0: path &= "&chunkSize=" & $chunkSize
   result = c.doRequestJson("GET", path)
+
+# --- Replication Batch API ---
+
+proc replicationCreateBatch*(c: Client, db: Database, serverId: string, ttl: int = 600): JsonNode =
+  ## Create a replication batch to prevent WAL state removal during sync.
+  ## serverId: the server ID of the tcp connection endpoint
+  ## ttl: time to live for the batch in seconds
+  let body = %*{
+    "serverId": serverId,
+    "ttl": ttl,
+  }
+  result = c.doRequestJson("POST", "_api/replication/batch", $body)
+
+proc replicationExtendBatch*(c: Client, batchId: string, ttl: int = 600) =
+  ## Extend the TTL of a replication batch.
+  let body = %*{"ttl": ttl}
+  discard c.doRequestJson("PUT", "_api/replication/batch/" & batchId, $body)
+
+proc replicationDeleteBatch*(c: Client, batchId: string) =
+  ## Delete a replication batch.
+  discard c.doRequestJson("DELETE", "_api/replication/batch/" & batchId)
+
+# --- Replication Sync API ---
+
+proc replicationGetRevisionTree*(c: Client, db: Database, batchId: string,
+                                  collection: string): JsonNode =
+  ## Retrieve the Merkle revision tree for a collection.
+  var path = "_api/replication/revision/tree?collection=" & collection
+  if batchId.len > 0:
+    path &= "&batchId=" & batchId
+  result = c.doRequestJson("GET", path)
+
+proc replicationGetRevisionsByRanges*(c: Client, db: Database, batchId: string,
+                                       collection: string,
+                                       ranges: seq[(string, string)],
+                                       resume: string = ""): JsonNode =
+  ## Retrieve revision IDs within specified ranges.
+  var body = %*{
+    "collection": collection,
+    "batchId": batchId,
+  }
+  var rangesArr = newJArray()
+  for r in ranges:
+    rangesArr.add(%*[r[0], r[1]])
+  body["ranges"] = rangesArr
+  if resume.len > 0:
+    body["resume"] = %resume
+  result = c.doRequestJson("PUT", "_api/replication/revisions/by-ranges", $body)
+
+proc replicationGetRevisionDocuments*(c: Client, db: Database, batchId: string,
+                                       collection: string,
+                                       revisions: seq[string]): JsonNode =
+  ## Retrieve documents by their revision IDs.
+  let body = %*{
+    "collection": collection,
+    "batchId": batchId,
+    "revisions": %revisions,
+  }
+  result = c.doRequestJson("POST", "_api/replication/revisions/tree", $body)

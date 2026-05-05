@@ -4,8 +4,9 @@
 
 ```bash
 nimble check     # nim check src/nim_arango.nim
-nimble test      # runs all 7 unit test suites (50 tests)
+nimble test      # runs all 7 unit test suites (53 tests)
 nimble examples  # builds all 8 examples
+nimble bench     # runs benchmarks (requires ArangoDB)
 ```
 
 ## Testing

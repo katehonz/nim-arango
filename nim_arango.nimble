@@ -31,3 +31,6 @@ task examples, "Build examples":
   exec "nim c --path:src examples/async_example.nim"
   exec "nim c --path:src examples/macro_api.nim"
   exec "nim c --path:src examples/orm.nim"
+
+task bench, "Run benchmarks (requires ArangoDB)":
+  exec "nim c -d:release -r tests/benchmark.nim"
