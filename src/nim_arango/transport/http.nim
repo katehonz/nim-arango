@@ -1,7 +1,7 @@
 ## HTTP transport implementation with connection pooling via std/httpclient.
 
 import std/[httpclient, strutils, uri, random, json, tables, times]
-import ../transport, ../logging
+import ../transport, ../logging, ../metrics
 
 proc normalizeEndpoints(endpoints: seq[string]): seq[string] =
   for ep in endpoints:
@@ -96,10 +96,19 @@ method execute*(ht: HttpTransport, ctx: pointer, req: Request): transport.Respon
     )
 
     logRequest(req.verb, req.path, statusCode, durationMs, endpoint)
+
+    # Metrics
+    let reqCounter = getOrCreateCounter("nim_arango_requests_total")
+    reqCounter.inc()
+    let hist = getOrCreateHistogram("nim_arango_request_duration_seconds", @[0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0, 5.0])
+    hist.observe(durationMs.float64 / 1000.0)
+
   except CatchableError as e:
     # Restore headers even on error
     ht.client.headers = originalHeaders
     logError("http: request failed: " & e.msg)
+    let errCounter = getOrCreateCounter("nim_arango_request_errors_total")
+    errCounter.inc()
     raise newException(ValueError, "http: request failed: " & e.msg)
 
   # Restore original headers
