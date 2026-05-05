@@ -1,7 +1,7 @@
 ## Transport layer for ArangoDB driver.
 ## Defines the Transport base type, Request/Response types, and protocol constants.
 
-import std/[tables, strformat]
+import std/[tables, strformat, strutils, algorithm]
 
 type
   Protocol* = enum
@@ -9,7 +9,7 @@ type
     protVST = "vst"
 
   Request* = ref object
-    method*: string
+    verb*: string
     path*: string
     query*: Table[string, string]
     headers*: Table[string, string]
@@ -36,8 +36,8 @@ method protocol*(t: Transport): Protocol {.base.} =
 method close*(t: Transport) {.base.} =
   discard
 
-proc newRequest*(method, path: string): Request =
-  Request(method: method, path: path, query: initTable[string, string](), headers: initTable[string, string]())
+proc newRequest*(verb, path: string): Request =
+  Request(verb: verb, path: path, query: initTable[string, string](), headers: initTable[string, string]())
 
 proc setQuery*(r: Request, key, value: string): Request =
   r.query[key] = value
@@ -55,6 +55,10 @@ proc queryString*(r: Request): string =
   if r.query.len == 0:
     return ""
   var parts: seq[string]
-  for k, v in r.query:
-    parts.add &"{k}={v}"
+  var keys: seq[string]
+  for k in r.query.keys:
+    keys.add k
+  keys.sort()
+  for k in keys:
+    parts.add k & "=" & r.query[k]
   "?" & parts.join("&")

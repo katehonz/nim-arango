@@ -1,7 +1,14 @@
 ## HTTP transport implementation with connection pooling via std/httpclient.
 
-import std/[httpclient, strutils, uri, random]
+import std/[httpclient, strutils, uri, random, json, tables]
 import ../transport
+
+proc normalizeEndpoints(endpoints: seq[string]): seq[string] =
+  for ep in endpoints:
+    var e = ep.strip(chars = {'/'})
+    if not (e.startsWith("http://") or e.startsWith("https://")):
+      e = "http://" & e
+    result.add e
 
 type
   HttpTransport* = ref object of Transport
@@ -11,15 +18,17 @@ type
     driverInfo: string
     closed: bool
 
-proc newHttpTransport*(endpoints: seq[string], timeout: int = 30000, userAgent = "nim-arango-driver"): HttpTransport =
+proc newHttpTransport*(endpoints: seq[string], timeout: int = 30000, userAgent = "nim-arango-driver/0.1.0"): HttpTransport =
   if endpoints.len == 0:
     raise newException(ValueError, "http: at least one endpoint required")
 
   let normEndpoints = normalizeEndpoints(endpoints)
+  randomize()
 
   let client = newHttpClient(timeout = timeout)
   client.headers["User-Agent"] = userAgent
   client.headers["Connection"] = "keep-alive"
+  client.headers["Accept"] = "application/json"
 
   HttpTransport(
     endpoints: normEndpoints,
@@ -27,67 +36,70 @@ proc newHttpTransport*(endpoints: seq[string], timeout: int = 30000, userAgent =
     userAgent: userAgent,
   )
 
-proc normalizeEndpoints(endpoints: seq[string]): seq[string] =
-  for ep in endpoints:
-    var e = ep.strip(chars = {'/'})
-    if not (e.startsWith("http://") or e.startsWith("https://")):
-      e = "http://" & e
-    result.add e
-
 proc pickEndpoint(ht: HttpTransport): string =
   if ht.endpoints.len == 1:
     return ht.endpoints[0]
-  rand(ht.endpoints.len)
   ht.endpoints[rand(ht.endpoints.len - 1)]
 
-method execute*(ht: HttpTransport, ctx: pointer, req: Request): Response =
+proc verbToHttpMethod(m: string): HttpMethod =
+  case m.toUpperAscii()
+  of "GET": HttpGet
+  of "POST": HttpPost
+  of "PUT": HttpPut
+  of "PATCH": HttpPatch
+  of "DELETE": HttpDelete
+  of "HEAD": HttpHead
+  of "OPTIONS": HttpOptions
+  else: raise newException(ValueError, "http: unsupported verb: " & m)
+
+method execute*(ht: HttpTransport, ctx: pointer, req: Request): transport.Response =
   if ht.closed:
     raise newException(ValueError, "http: connection closed")
 
   let endpoint = ht.pickEndpoint()
-  var fullUrl = endpoint & "/" & req.path
+  var fullUrl = endpoint & "/" & req.path.strip(chars = {'/'})
   let qs = req.queryString()
   if qs.len > 0:
     fullUrl &= qs
 
-  for k, v in req.headers:
+  # Save original headers to restore later
+  let originalHeaders = ht.client.headers
+
+  # Apply request-specific headers
+  for k, v in req.headers.pairs:
     ht.client.headers[k] = v
-  if ht.userAgent.len > 0 and "User-Agent" notin req.headers:
+
+  if ht.userAgent.len > 0 and not req.headers.hasKey("User-Agent"):
     ht.client.headers["User-Agent"] = ht.userAgent
   if ht.driverInfo.len > 0:
     ht.client.headers["x-arango-driver"] = ht.driverInfo
+  if req.body.len > 0 and not req.headers.hasKey("Content-Type"):
+    ht.client.headers["Content-Type"] = "application/json"
 
-  var respBody: string
-  var statusCode: int
-  var respHeaders = initTable[string, string]()
-
+  var resp: transport.Response
   try:
-    case req.method
-    of "GET":
-      respBody = ht.client.getContent(fullUrl)
-    of "POST":
-      ht.client.headers["Content-Type"] = "application/json"
-      respBody = ht.client.postContent(fullUrl, body = req.body)
-    of "PUT":
-      ht.client.headers["Content-Type"] = "application/json"
-      respBody = ht.client.putContent(fullUrl, body = req.body)
-    of "PATCH":
-      ht.client.headers["Content-Type"] = "application/json"
-      respBody = ht.client.request(fullUrl, httpMethod = HttpPatch, body = req.body).body
-    of "DELETE":
-      respBody = ht.client.deleteContent(fullUrl)
-    else:
-      raise newException(ValueError, "http: unsupported method: " & req.method)
-    statusCode = 200
-  except HttpRequestError as e:
-    raise newException(ValueError, "http: request failed: " & e.msg)
+    let httpResp = ht.client.request(fullUrl, httpMethod = verbToHttpMethod(req.verb), body = req.body)
+    let statusCode = httpResp.code.int
+
+    var respHeaders = initTable[string, string]()
+    for k, v in httpResp.headers.pairs:
+      respHeaders[k] = v
+
+    let body = httpResp.body
+    resp = transport.Response(
+      statusCode: statusCode,
+      headers: respHeaders,
+      body: body,
+      endpoint: endpoint,
+    )
   except CatchableError as e:
-    raise newException(ValueError, "http: " & e.msg)
+    # Restore headers even on error
+    ht.client.headers = originalHeaders
+    raise newException(ValueError, "http: request failed: " & e.msg)
 
-  for k, v in ht.client.headers.pairs:
-    respHeaders[k] = v
-
-  Response(statusCode: statusCode, headers: respHeaders, body: respBody, endpoint: endpoint)
+  # Restore original headers
+  ht.client.headers = originalHeaders
+  resp
 
 method endpoints*(ht: HttpTransport): seq[string] = ht.endpoints
 
