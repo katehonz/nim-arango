@@ -36,3 +36,4 @@ nimble bench     # runs benchmarks (requires ArangoDB)
 
 - Roadmap: `ROADMAP.md` (Bulgarian)
 - Full API examples: `README.md`, `examples/`
+- Documentation: `docs/` (15 API docs + index)
