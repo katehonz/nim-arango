@@ -28,6 +28,6 @@
 ## client.close()
 ## ```
 
-import nim_arango/[transport, transport/http, transport/retry, auth, errors, options, types, client, database, collection, document, query]
+import nim_arango/[transport, transport/http, transport/retry, auth, errors, options, types, client, database, collection, document, query, graph, view, index, analyzer]
 
-export transport, http, retry, auth, errors, options, types, client, database, collection, document, query
+export transport, http, retry, auth, errors, options, types, client, database, collection, document, query, graph, view, index, analyzer
