@@ -74,13 +74,14 @@ macro documentApi*(T: typedesc): untyped =
       let j = `colIdent`.db.client.doRequestJson("GET", "_api/document/" & `colIdent`.name & qs)
       result = @[]
       for node in j.getElems():
+        let meta = parseDocumentMeta(node)
         var dataNode = node
         dataNode.delete("_key")
         dataNode.delete("_id")
         dataNode.delete("_rev")
         dataNode.delete("_oldRev")
         result.add(Document[`typeNameSym`](
-          meta: parseDocumentMeta(node),
+          meta: meta,
           data: fromJson[`typeNameSym`](dataNode),
         ))
 

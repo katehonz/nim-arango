@@ -1,7 +1,7 @@
 ## Index API — create, list, and drop collection indexes.
 
 import std/[json]
-import client, types
+import client, types, errors
 
 type
   CreateIndexOption* = proc(cfg: var IndexConfig)
@@ -184,7 +184,7 @@ proc indexExists*(col: Collection, name: string): bool =
   try:
     let j = col.db.client.doRequestJson("GET", "_api/index/" & col.name & "/" & name)
     result = j.hasKey("id") and j{"id"}.getStr("").len > 0
-  except CatchableError:
+  except ArangoError:
     result = false
 
 proc getIndex*(col: Collection, name: string): IndexInfo =

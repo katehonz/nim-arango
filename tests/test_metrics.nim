@@ -19,7 +19,8 @@ suite "Metrics":
     check h.counts[0] == 1
     check h.counts[1] == 2
     check h.counts[2] == 2
-    check h.counts[3] == 6
+    check h.counts[3] == 3
+    check h.counts[4] == 3
 
   test "registry getOrCreate":
     let c1 = getOrCreateCounter("registry_counter2")

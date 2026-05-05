@@ -53,7 +53,7 @@ proc dec*(g: Gauge, amount: float64 = 1.0) =
   g.value -= amount
 
 proc newHistogram*(name: string, buckets: seq[float], labels: Table[string, string] = initTable[string, string]()): Histogram =
-  var counts = newSeq[int64](buckets.len)
+  var counts = newSeq[int64](buckets.len + 1)
   Histogram(name: name, buckets: buckets, counts: counts, sum: 0.0, labels: labels)
 
 proc observe*(h: Histogram, value: float64) =
@@ -61,9 +61,8 @@ proc observe*(h: Histogram, value: float64) =
   for i, b in h.buckets:
     if value <= b:
       h.counts[i] += 1
-  # Also count in the +Inf bucket (last one)
-  if h.buckets.len > 0:
-    h.counts[^1] += 1
+  # +Inf bucket (last element) always counts every observation
+  h.counts[^1] += 1
 
 proc getOrCreateCounter*(name: string, labels: Table[string, string] = initTable[string, string]()): Counter =
   if defaultRegistry == nil:
@@ -103,6 +102,7 @@ proc renderMetrics*(): string =
     lines.add &"# TYPE {h.name} histogram"
     for i, b in h.buckets:
       lines.add &"{h.name}_bucket{{le=\"{b}\"}} {h.counts[i]}"
+    lines.add &"{h.name}_bucket{{le=\"+Inf\"}} {h.counts[^1]}"
     lines.add &"{h.name}_sum {h.sum}"
     lines.add &"{h.name}_count {h.counts[^1]}"
   result = lines.join("\n")

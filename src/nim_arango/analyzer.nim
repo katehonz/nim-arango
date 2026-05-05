@@ -1,7 +1,7 @@
 ## Analyzer API — text analysis for ArangoSearch.
 
 import std/[json]
-import client, types
+import client, types, errors
 
 type
   AnalyzerOption* = proc(cfg: var AnalyzerConfig)
@@ -93,5 +93,5 @@ proc analyzerExists*(db: Database, name: string): bool =
   try:
     discard db.client.doRequestJson("GET", "_api/analyzer/" & name)
     result = true
-  except CatchableError:
+  except ArangoError:
     result = false

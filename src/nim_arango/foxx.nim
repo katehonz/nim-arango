@@ -1,7 +1,7 @@
 ## Foxx API — microservice management.
 
 import std/[json, uri]
-import client, transport, types, auth
+import client, transport, types, auth, errors
 
 type
   FoxxOption* = proc(cfg: var FoxxConfig)
@@ -50,7 +50,8 @@ proc installFoxxService*(c: Client, dbName, mount, zipPath: string, optsArgs: va
   discard req.setHeader("Content-Type", "application/zip")
   if c.auth != nil:
     c.auth.apply(req)
-  discard c.transport.execute(nil, req)
+  let resp = c.transport.execute(nil, req)
+  raiseOnError(resp.body, resp.statusCode)
 
 proc uninstallFoxxService*(c: Client, dbName, mount: string, teardown: bool = true) =
   var url = "_api/foxx/service?mount=" & encodeUrl(mount)
@@ -70,7 +71,8 @@ proc replaceFoxxService*(c: Client, dbName, mount, zipPath: string, optsArgs: va
   discard req.setHeader("Content-Type", "application/zip")
   if c.auth != nil:
     c.auth.apply(req)
-  discard c.transport.execute(nil, req)
+  let resp = c.transport.execute(nil, req)
+  raiseOnError(resp.body, resp.statusCode)
 
 proc listFoxxServices*(c: Client, dbName: string): seq[FoxxServiceInfo] =
   let j = c.doRequestJson("GET", "_api/foxx")

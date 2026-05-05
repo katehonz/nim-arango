@@ -55,7 +55,7 @@ const
   # General ArangoDB errors
   ERROR_ARANGO_CONFLICT* = ArangoErrorCode(1200)
   ERROR_ARANGO_DATADIR_LOCKED* = ArangoErrorCode(1201)
-  ERROR_ARANGO_MOUNTPOINT_CONFLICT* = ArangoErrorCode(1202)
+  ERROR_ARANGO_DOCUMENT_NOT_FOUND* = ArangoErrorCode(1202)
   ERROR_ARANGO_DATABASE_NOT_FOUND* = ArangoErrorCode(1228)
   ERROR_ARANGO_DATABASE_NAME_INVALID* = ArangoErrorCode(1229)
   ERROR_ARANGO_USE_SYSTEM_DATABASE* = ArangoErrorCode(1230)
@@ -68,7 +68,6 @@ const
   ERROR_ARANGO_ATTRIBUTE_PARSER_FAILED* = ArangoErrorCode(1237)
   ERROR_ARANGO_DOCUMENT_KEY_BAD* = ArangoErrorCode(1238)
   ERROR_ARANGO_DOCUMENT_KEY_UNEXPECTED* = ArangoErrorCode(1239)
-  ERROR_ARANGO_DOCUMENT_NOT_FOUND* = ArangoErrorCode(1202)
   ERROR_ARANGO_DATA_SOURCE_NOT_FOUND* = ArangoErrorCode(1203)
   ERROR_ARANGO_DATA_SOURCE_ALREADY_EXISTS* = ArangoErrorCode(1207)
   ERROR_ARANGO_CORRUPTED_DATAFILE* = ArangoErrorCode(1100)
@@ -99,14 +98,11 @@ proc raiseOnError*(respBody: string, statusCode: int) =
   try:
     let j = parseJson(respBody)
     if j.hasKey("error") and j["error"].getBool():
-      let errNum = j["errorNum"].getInt()
-      let errMsg = j["errorMessage"].getStr()
+      let errNum = if j.hasKey("errorNum"): j["errorNum"].getInt() else: 0
+      let errMsg = if j.hasKey("errorMessage"): j["errorMessage"].getStr() else: "unknown error"
       raise newArangoError(statusCode, errNum, errMsg)
   except JsonParsingError:
     # Not JSON or malformed — ignore, let caller handle raw body
-    discard
-  except KeyError:
-    # Missing expected keys — ignore
     discard
 
 proc isNotFound*(e: ArangoError): bool =

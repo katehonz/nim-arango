@@ -64,8 +64,10 @@ method execute*(ht: HttpTransport, ctx: pointer, req: Request): transport.Respon
   if qs.len > 0:
     fullUrl &= qs
 
-  # Save original headers to restore later
-  let originalHeaders = ht.client.headers
+  # Save original headers (deep copy to avoid ref aliasing)
+  var savedHeaders = newHttpHeaders()
+  for k, v in ht.client.headers.pairs:
+    savedHeaders[k] = v
 
   # Apply request-specific headers
   for k, v in req.headers.pairs:
@@ -113,7 +115,7 @@ method execute*(ht: HttpTransport, ctx: pointer, req: Request): transport.Respon
 
   except CatchableError as e:
     # Restore headers even on error
-    ht.client.headers = originalHeaders
+    ht.client.headers = savedHeaders
     logError("http: request failed: " & e.msg)
     let errCounter = getOrCreateCounter("nim_arango_request_errors_total")
     errCounter.inc()
@@ -123,7 +125,7 @@ method execute*(ht: HttpTransport, ctx: pointer, req: Request): transport.Respon
     poolGauge.set(ht.activeConnections.float64)
 
   # Restore original headers
-  ht.client.headers = originalHeaders
+  ht.client.headers = savedHeaders
   resp
 
 method endpoints*(ht: HttpTransport): seq[string] = ht.endpoints

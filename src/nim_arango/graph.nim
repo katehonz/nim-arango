@@ -1,6 +1,6 @@
 ## Graph API — vertices, edges, and traversals.
 
-import std/[json, strformat]
+import std/[json, strformat, strutils]
 import client, database, types, query
 
 type
@@ -162,7 +162,13 @@ proc traversal*[T](g: Graph, startVertex: string, optsArgs: varargs[TraverseOpt]
   for opt in optsArgs:
     opt(cfg)
 
-  let aql = &"FOR v, e, p IN {cfg.minDepth}..{cfg.maxDepth} {cfg.direction} '{startVertex}' GRAPH '{g.name}' RETURN v"
+  let dir = cfg.direction.toLowerAscii()
+  if dir notin ["outbound", "inbound", "any"]:
+    raise newException(ValueError, "invalid direction: " & cfg.direction)
 
-  let q = g.db.query(aql)
+  let aql = "FOR v, e, p IN " & $cfg.minDepth & ".." & $cfg.maxDepth &
+            " " & dir & " @startVertex GRAPH @graphName RETURN v"
+  var q = g.db.query(aql)
+    .bindParam("startVertex", startVertex)
+    .bindParam("graphName", g.name)
   result = exec[T](q, g.db)

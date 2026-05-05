@@ -102,13 +102,14 @@ proc findAll*[T](col: Collection, optsArgs: varargs[WriteOpt]): seq[Model[T]] =
   let j = col.db.client.doRequestJson("GET", "_api/document/" & col.name & qs)
   result = @[]
   for node in j.getElems():
+    let meta = parseDocumentMeta(node)
     var dataNode = node
     dataNode.delete("_key")
     dataNode.delete("_id")
     dataNode.delete("_rev")
     dataNode.delete("_oldRev")
     let doc = Document[T](
-      meta: parseDocumentMeta(node),
+      meta: meta,
       data: fromJson[T](dataNode),
     )
     result.add(newModelFromDoc[T](col, doc))

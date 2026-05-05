@@ -77,6 +77,12 @@ proc exec*[T](q: Query, db: Database): Cursor[T] =
 
 proc execOne*[T](q: Query, db: Database): T =
   let j = execImpl(q, db)
+  # Close server-side cursor if one was created
+  if j.hasKey("id") and j{"id"}.getStr("").len > 0:
+    try:
+      discard db.client.doRequest("DELETE", "_api/cursor/" & j{"id"}.getStr(""))
+    except CatchableError:
+      discard
   if j.hasKey("result") and j["result"].len > 0:
     result = j["result"][0].to(T)
   else:

@@ -1,7 +1,7 @@
 ## Transport layer for ArangoDB driver.
 ## Defines the Transport base type, Request/Response types, and protocol constants.
 
-import std/[tables, strutils, algorithm]
+import std/[tables, strutils, algorithm, uri]
 
 type
   Protocol* = enum
@@ -60,5 +60,5 @@ proc queryString*(r: Request): string =
     keys.add k
   keys.sort()
   for k in keys:
-    parts.add k & "=" & r.query[k]
+    parts.add encodeUrl(k) & "=" & encodeUrl(r.query[k])
   "?" & parts.join("&")

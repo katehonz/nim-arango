@@ -64,7 +64,10 @@ method execute*(ht: AsyncHttpTransport, ctx: pointer, req: Request): transport.R
   if qs.len > 0:
     fullUrl &= qs
 
-  let originalHeaders = ht.client.headers
+  # Save original headers (deep copy to avoid ref aliasing)
+  var savedHeaders = newHttpHeaders()
+  for k, v in ht.client.headers.pairs:
+    savedHeaders[k] = v
 
   for k, v in req.headers.pairs:
     ht.client.headers[k] = v
@@ -97,8 +100,13 @@ method execute*(ht: AsyncHttpTransport, ctx: pointer, req: Request): transport.R
     )
     logRequest(req.verb, req.path, statusCode, durationMs, endpoint)
 
-  waitFor doRequest()
-  ht.client.headers = originalHeaders
+  try:
+    waitFor doRequest()
+  except CatchableError as e:
+    logError("async http: request failed: " & e.msg)
+    raise newException(ValueError, "http: request failed: " & e.msg)
+  finally:
+    ht.client.headers = savedHeaders
   resp
 
 method endpoints*(ht: AsyncHttpTransport): seq[string] = ht.endpoints
