@@ -1,7 +1,7 @@
 ## HTTP transport implementation with connection pooling via std/httpclient.
 
-import std/[httpclient, strutils, uri, random, json, tables]
-import ../transport
+import std/[httpclient, strutils, uri, random, json, tables, times]
+import ../transport, ../logging
 
 proc normalizeEndpoints(endpoints: seq[string]): seq[string] =
   for ep in endpoints:
@@ -76,10 +76,12 @@ method execute*(ht: HttpTransport, ctx: pointer, req: Request): transport.Respon
   if req.body.len > 0 and not req.headers.hasKey("Content-Type"):
     ht.client.headers["Content-Type"] = "application/json"
 
+  let startTime = getTime()
   var resp: transport.Response
   try:
     let httpResp = ht.client.request(fullUrl, httpMethod = verbToHttpMethod(req.verb), body = req.body)
     let statusCode = httpResp.code.int
+    let durationMs = (getTime() - startTime).inMilliseconds
 
     var respHeaders = initTable[string, string]()
     for k, v in httpResp.headers.pairs:
@@ -92,9 +94,12 @@ method execute*(ht: HttpTransport, ctx: pointer, req: Request): transport.Respon
       body: body,
       endpoint: endpoint,
     )
+
+    logRequest(req.verb, req.path, statusCode, durationMs, endpoint)
   except CatchableError as e:
     # Restore headers even on error
     ht.client.headers = originalHeaders
+    logError("http: request failed: " & e.msg)
     raise newException(ValueError, "http: request failed: " & e.msg)
 
   # Restore original headers
