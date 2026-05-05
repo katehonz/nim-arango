@@ -17,5 +17,6 @@ task check, "Check compilation":
   exec "nim check src/nim_arango.nim"
 
 task examples, "Build examples":
-  exec "nim c examples/crud.nim"
-  exec "nim c examples/query.nim"
+  exec "nim c --path:src examples/crud.nim"
+  exec "nim c --path:src examples/query.nim"
+  exec "nim c --path:src examples/graph.nim"

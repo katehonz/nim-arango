@@ -1,7 +1,7 @@
 ## Graph API — vertices, edges, and traversals.
 
-import std/[json, options, strformat]
-import client, database, types
+import std/[json, options, strformat, strutils]
+import client, database, types, query
 
 type
   EdgeDefinition* = object
@@ -162,12 +162,7 @@ proc traversal*[T](g: Graph, startVertex: string, optsArgs: varargs[TraverseOpt]
   for opt in optsArgs:
     opt(cfg)
 
-  let aql = &"""
-    FOR v, e, p IN {cfg.minDepth}..{cfg.maxDepth} {cfg.direction}
-    '{startVertex}'
-    GRAPH '{g.name}'
-    RETURN v
-  """.strip().replace("\n", " ")
+  let aql = &"FOR v, e, p IN {cfg.minDepth}..{cfg.maxDepth} {cfg.direction} '{startVertex}' GRAPH '{g.name}' RETURN v"
 
   let q = g.db.query(aql)
-  result = q.exec[T](g.db)
+  result = exec[T](q, g.db)

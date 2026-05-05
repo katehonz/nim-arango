@@ -38,7 +38,7 @@ proc main() =
   discard follows.createDocument(Follows(since: "2024-01-01"))
 
   # Traversal
-  let cursor = g.traversal[Person]("people/" & alice.key,
+  let cursor = traversal[Person](g, "people/" & alice.key,
     withDirection("outbound"),
     withMaxDepth(2)
   )

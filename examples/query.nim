@@ -23,7 +23,7 @@ proc main() =
   discard products.createDocument(Product(name: "Desk", price: 199.99, category: "Furniture"))
 
   # Query with parameters
-  let cursor = db.query("""
+  let q = db.query("""
     FOR p IN products
       FILTER p.category == @cat AND p.price > @minPrice
       SORT p.price DESC
@@ -32,7 +32,8 @@ proc main() =
     .bindParam("cat", "Electronics")
     .bindParam("minPrice", 10.0)
     .batchSize(10)
-    .exec[Product]()
+
+  let cursor = exec[Product](q, db)
 
   echo "Products found:"
   while cursor.next():

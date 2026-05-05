@@ -32,21 +32,21 @@ proc main() =
   echo "Created document key: ", meta.key
 
   # READ
-  let doc = users.readDocument[User](meta.key)
+  let doc = readDocument[User](users, meta.key)
   echo "Read: ", doc.data.name, " (", doc.data.age, ")"
 
   # UPDATE
   let patch = User(name: "Alice Updated", email: "alice@example.com", age: 31)
-  let updateMeta = users.updateDocument(meta.key, patch)
+  let updateMeta = updateDocument(users, meta.key, patch)
   echo "Updated rev: ", updateMeta.rev
 
   # REPLACE
   let replacement = User(name: "Bob", email: "bob@example.com", age: 25)
-  let replaceMeta = users.replaceDocument(meta.key, replacement)
+  let replaceMeta = replaceDocument(users, meta.key, replacement)
   echo "Replaced key: ", replaceMeta.key
 
   # DELETE
-  let delMeta = users.removeDocument(meta.key)
+  let delMeta = removeDocument(users, meta.key)
   echo "Deleted key: ", delMeta.key
 
   # Cleanup
