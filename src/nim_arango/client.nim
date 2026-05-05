@@ -76,3 +76,26 @@ proc license*(c: Client): string =
 
 proc close*(c: Client) =
   c.transport.close()
+
+# --- JWT helpers ---
+
+proc jwtLogin*(c: Client) =
+  ## Perform JWT login if JWT auth is configured.
+  if c.auth of JwtAuth:
+    let jwt = JwtAuth(c.auth)
+    let body = %*{
+      "username": jwt.username,
+      "password": jwt.password,
+    }
+    let j = c.doRequestJson("POST", "_open/auth", $body)
+    jwt.token = j{"jwt"}.getStr("")
+
+proc jwtRefresh*(c: Client) =
+  ## Refresh an existing JWT token.
+  if c.auth of JwtAuth:
+    let jwt = JwtAuth(c.auth)
+    if jwt.token.len == 0:
+      raise newException(ValueError, "auth: no token to refresh")
+    let body = %*{"jwt": jwt.token}
+    let j = c.doRequestJson("POST", "_open/auth", $body)
+    jwt.token = j{"jwt"}.getStr("")

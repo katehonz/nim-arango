@@ -33,11 +33,6 @@ method apply*(a: JwtAuth, req: Request) =
   if a.token.len > 0:
     req.headers["Authorization"] = "Bearer " & a.token
 
-method login*(a: JwtAuth, transport: Transport) {.base.} =
-  ## Perform JWT login and store the token.
-  ## Should be called after transport is created.
-  discard
-
 proc newBasicAuth*(username, password: string): BasicAuth =
   BasicAuth(username: username, password: password)
 
