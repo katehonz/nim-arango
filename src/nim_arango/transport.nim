@@ -1,7 +1,7 @@
 ## Transport layer for ArangoDB driver.
 ## Defines the Transport base type, Request/Response types, and protocol constants.
 
-import std/[tables, strformat, strutils, algorithm]
+import std/[tables, strutils, algorithm]
 
 type
   Protocol* = enum

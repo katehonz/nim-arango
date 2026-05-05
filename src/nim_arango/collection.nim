@@ -1,7 +1,7 @@
 ## Collection API — metadata, management, and CRUD operations.
 
-import std/[json, strformat, options, strutils]
-import client, database, types, errors, options as opts
+import std/[json, strutils]
+import client, types, options as opts
 
 proc name*(c: Collection): string = c.name
 

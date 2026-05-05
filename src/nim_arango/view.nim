@@ -1,7 +1,7 @@
 ## View API — ArangoSearch and Search Alias views.
 
-import std/[json, options, strformat]
-import client, database, types
+import std/[json]
+import client, types
 
 type
   CreateViewOption* = proc(cfg: var ViewConfig)

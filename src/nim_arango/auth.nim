@@ -2,8 +2,8 @@
 ##
 ## Supports Basic Auth, JWT, and raw header authentication.
 
-import std/[base64, json, tables, strformat]
-import transport, errors
+import std/[base64, tables]
+import transport
 
 type
   Authenticator* = ref object of RootObj

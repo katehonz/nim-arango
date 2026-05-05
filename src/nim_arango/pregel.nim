@@ -1,7 +1,7 @@
 ## Pregel API — distributed graph analytics.
 
-import std/[json, strformat]
-import client, database, types
+import std/[json]
+import client, types
 
 type
   PregelOption* = proc(cfg: var PregelConfig)

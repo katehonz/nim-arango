@@ -2,7 +2,7 @@
 ##
 ## Provides database management, server info, and lifecycle control.
 
-import std/[json, strformat, tables, options]
+import std/[json]
 import transport, transport/http, auth, errors, options as opts, types
 
 proc newClient*(optsArgs: varargs[ClientOption]): Client =
@@ -76,6 +76,76 @@ proc license*(c: Client): string =
 
 proc close*(c: Client) =
   c.transport.close()
+
+# --- Server Admin ---
+
+type
+  ServerMode* = enum
+    smDefault = "default"
+    smReadOnly = "readonly"
+
+  ServerStatistics* = object
+    system*: JsonNode
+    client*: JsonNode
+    http*: JsonNode
+    server*: JsonNode
+    threads*: JsonNode
+
+proc serverID*(c: Client): string =
+  ## Get the ID of this server in the cluster.
+  let j = c.doRequestJson("GET", "_api/cluster/endpoints")
+  if j.hasKey("endpoints") and j["endpoints"].len > 0:
+    result = j["endpoints"][0]{"serverId"}.getStr("")
+
+proc serverMode*(c: Client): ServerMode =
+  ## Get current server mode (default or readonly).
+  let j = c.doRequestJson("GET", "_admin/server/mode")
+  case j{"mode"}.getStr("default")
+  of "readonly": smReadOnly
+  else: smDefault
+
+proc setServerMode*(c: Client, mode: ServerMode) =
+  ## Change server mode to readonly or default.
+  let body = %*{"mode": $mode}
+  discard c.doRequestJson("PUT", "_admin/server/mode", $body)
+
+proc shutdown*(c: Client, removeFromCluster: bool = false) =
+  ## Shut down the server, optionally removing from cluster.
+  var path = "_admin/shutdown"
+  if removeFromCluster:
+    path &= "?removeFromCluster=true"
+  discard c.doRequest("DELETE", path)
+
+proc serverMetrics*(c: Client): string =
+  ## Retrieve server-side Prometheus metrics.
+  let resp = c.doRequest("GET", "_admin/metrics")
+  result = resp.body
+
+proc serverStatistics*(c: Client): ServerStatistics =
+  ## Retrieve server statistics.
+  let j = c.doRequestJson("GET", "_admin/statistics")
+  let stats = j{"statistics"}
+  result = ServerStatistics(
+    system: stats{"system"},
+    client: stats{"client"},
+    http: stats{"http"},
+    server: stats{"server"},
+    threads: stats{"threads"},
+  )
+
+proc serverLogs*(c: Client, level: string = "", start: int = 0, size: int = 1000): JsonNode =
+  ## Retrieve server logs.
+  var path = "_admin/log?start=" & $start & "&size=" & $size
+  if level.len > 0:
+    path &= "&upto=" & level
+  result = c.doRequestJson("GET", path)
+
+proc versionWithOptions*(c: Client, details: bool = false): JsonNode =
+  ## Get version with optional details.
+  var path = "_api/version"
+  if details:
+    path &= "?details=true"
+  result = c.doRequestJson("GET", path)
 
 # --- JWT helpers ---
 

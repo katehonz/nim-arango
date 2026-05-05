@@ -1,6 +1,6 @@
 ## Retry transport wrapper with exponential backoff and jitter.
 
-import std/[random, times, math, strutils, os]
+import std/[random, times, math, os]
 import ../transport
 
 type

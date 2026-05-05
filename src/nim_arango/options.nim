@@ -2,7 +2,7 @@
 ##
 ## Provides a fluent, type-safe way to configure clients, documents, queries, etc.
 
-import std/[times, tables, json]
+import std/[json]
 import auth
 
 type

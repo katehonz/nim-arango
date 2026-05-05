@@ -1,7 +1,7 @@
 ## Index API — create, list, and drop collection indexes.
 
-import std/[json, options, strformat]
-import client, collection, types
+import std/[json]
+import client, types
 
 type
   CreateIndexOption* = proc(cfg: var IndexConfig)
@@ -15,6 +15,8 @@ type
     estimates*: bool = true
     cacheEnabled*: bool
     fields*: seq[string]
+    primarySort*: JsonNode
+    storedValues*: JsonNode
     additional*: JsonNode
 
   # Specialized index configs
@@ -173,6 +175,96 @@ proc createTTLIndex*(col: Collection, field: string, expireAfter: int): IndexInf
     `type`: j{"type"}.getStr(""),
     name: j{"name"}.getStr(""),
     fields: @[field],
+    unique: false,
+    sparse: false,
+  )
+
+proc indexExists*(col: Collection, name: string): bool =
+  ## Check if an index exists by name.
+  try:
+    let j = col.db.client.doRequestJson("GET", "_api/index/" & col.name & "/" & name)
+    result = j.hasKey("id") and j{"id"}.getStr("").len > 0
+  except CatchableError:
+    result = false
+
+proc getIndex*(col: Collection, name: string): IndexInfo =
+  ## Get a single index by name.
+  let j = col.db.client.doRequestJson("GET", "_api/index/" & col.name & "/" & name)
+  var fields: seq[string] = @[]
+  if j.hasKey("fields"):
+    for f in j["fields"].getElems():
+      fields.add(f.getStr())
+  result = IndexInfo(
+    id: j{"id"}.getStr(""),
+    `type`: j{"type"}.getStr(""),
+    name: j{"name"}.getStr(""),
+    fields: fields,
+    unique: j{"unique"}.getBool(false),
+    sparse: j{"sparse"}.getBool(false),
+  )
+
+proc createInvertedIndex*(col: Collection, fields: JsonNode,
+                          analyzer: string = "identity",
+                          includeAllFields: bool = false,
+                          optsArgs: varargs[CreateIndexOption]): IndexInfo =
+  ## Create an inverted index for ArangoSearch.
+  var cfg = IndexConfig()
+  for opt in optsArgs:
+    opt(cfg)
+
+  var body = %*{
+    "type": "inverted",
+    "fields": fields,
+    "analyzer": analyzer,
+    "includeAllFields": includeAllFields,
+  }
+  if cfg.name.len > 0:
+    body["name"] = %cfg.name
+  if cfg.primarySort != nil:
+    body["primarySort"] = cfg.primarySort
+  if cfg.storedValues != nil:
+    body["storedValues"] = cfg.storedValues
+
+  let j = col.db.client.doRequestJson("POST", "_api/index?collection=" & col.name, $body)
+  var resultFields: seq[string] = @[]
+  if j.hasKey("fields"):
+    for f in j["fields"].getElems():
+      resultFields.add(f.getStr())
+  result = IndexInfo(
+    id: j{"id"}.getStr(""),
+    `type`: j{"type"}.getStr(""),
+    name: j{"name"}.getStr(""),
+    fields: resultFields,
+    unique: false,
+    sparse: false,
+  )
+
+proc createFulltextIndex*(col: Collection, fields: seq[string], minLength: int = 0,
+                          optsArgs: varargs[CreateIndexOption]): IndexInfo =
+  ## Create a fulltext index (deprecated in 3.10+, use inverted index instead).
+  var cfg = IndexConfig(fields: fields)
+  for opt in optsArgs:
+    opt(cfg)
+
+  var body = %*{
+    "type": "fulltext",
+    "fields": %fields,
+  }
+  if minLength > 0:
+    body["minLength"] = %minLength
+  if cfg.name.len > 0:
+    body["name"] = %cfg.name
+
+  let j = col.db.client.doRequestJson("POST", "_api/index?collection=" & col.name, $body)
+  var resultFields: seq[string] = @[]
+  if j.hasKey("fields"):
+    for f in j["fields"].getElems():
+      resultFields.add(f.getStr())
+  result = IndexInfo(
+    id: j{"id"}.getStr(""),
+    `type`: j{"type"}.getStr(""),
+    name: j{"name"}.getStr(""),
+    fields: resultFields,
     unique: false,
     sparse: false,
   )

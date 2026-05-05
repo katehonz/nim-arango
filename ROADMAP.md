@@ -14,6 +14,46 @@
 
 ---
 
+## Прогрес ✅
+
+| Фаза | Статус | Бележки |
+|------|--------|---------|
+| 0. Анализ Go driver | ✅ Готово | go-driver/ проучен |
+| 1. Transport | ✅ Готово | HTTP, retry, async |
+| 2. Client & Database | ✅ Готово | server admin, JWT |
+| 3. Collection & Document | ✅ Готово | Generics |
+| 4. Query & Cursor | ✅ Готово | |
+| 5. Graph/View/Index/Analyzer | ✅ Готово | inverted, fulltext, geo, TTL |
+| 6. Transactions/Pregel/Foxx | ✅ Готово | status, running list |
+| 7. Observability | ✅ Готово | logging, metrics, circuit |
+| 8. Tests & Docs | ✅ Готово | 50 unit tests, 8 examples |
+
+---
+
+## Оставаща работа
+
+### Приоритет 1 — Нужни преди release
+- [x] Изчисти unused imports
+- [x] Повече unit тестове
+- [x] Примери: batch, transactions, async
+- [x] Server Admin APIs (serverMode, shutdown, serverMetrics, serverStatistics)
+- [x] Transaction status + running list
+- [x] Cluster management (cleanOutServer, resignServer, removeServer, databaseInventory)
+- [x] Index helpers (indexExists, getIndex, createInvertedIndex, createFulltextIndex)
+- [x] Analyzer improvements (getAnalyzer, analyzerExists, force remove)
+
+### Приоритет 2 — Подобрения
+- [x] Compile-time document API generation macro (`documentApi(User)`)
+- [x] ORM layer с macros (`Model[T]`, save/delete/refresh/findByKey/findWhere/validate)
+- [ ] VST протокол поддръжка (complex, low priority)
+
+### Приоритет 3 — След release
+- [ ] Connection pool metrics
+- [ ] Benchmarks vs Go driver
+- [ ] Nimble package registry publish
+
+---
+
 ## Архитектурни цели
 
 ### Предимства на Nim пред Go за database driver

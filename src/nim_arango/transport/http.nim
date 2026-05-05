@@ -1,6 +1,6 @@
 ## HTTP transport implementation with connection pooling via std/httpclient.
 
-import std/[httpclient, strutils, uri, random, json, tables, times]
+import std/[httpclient, strutils, uri, random, tables, times]
 import ../transport, ../logging, ../metrics
 
 proc normalizeEndpoints(endpoints: seq[string]): seq[string] =

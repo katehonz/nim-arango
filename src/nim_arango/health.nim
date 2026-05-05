@@ -1,6 +1,6 @@
 ## Health check and cluster monitoring API.
 
-import std/[json, strformat]
+import std/[json]
 import client, types
 
 type

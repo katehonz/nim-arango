@@ -1,6 +1,6 @@
 ## Foxx API — microservice management.
 
-import std/[json, strformat, os, uri]
+import std/[json, uri]
 import client, transport, types, auth
 
 type

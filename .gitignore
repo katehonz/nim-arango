@@ -10,9 +10,24 @@ nimcache/
 *.ndb
 
 # Test binaries
-*.test
 tests/test_transport
 tests/test_client
+tests/test_metrics
+tests/test_query
+tests/test_errors
+tests/test_macros
+tests/test_orm
+tests/benchmark
+
+# Example binaries
+examples/crud
+examples/query
+examples/graph
+examples/batch
+examples/transaction
+examples/async_example
+examples/macro_api
+examples/orm
 
 # IDE
 .idea/

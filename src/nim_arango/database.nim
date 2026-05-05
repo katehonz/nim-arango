@@ -1,7 +1,7 @@
 ## Database API — collections, views, queries, and transactions.
 
-import std/[json, strformat, tables, options]
-import client, types, errors, options as opts
+import std/[json, tables]
+import client, types, options as opts
 
 proc name*(db: Database): string = db.name
 
@@ -82,10 +82,12 @@ proc query*(db: Database, aql: string): Query =
 
 # --- Transaction ---
 
-proc beginTransaction*(db: Database, readCollections, writeCollections: seq[string] = @[],
-                       exclusiveCollections: seq[string] = @[],
-                       waitForSync: bool = false,
-                       allowImplicit: bool = true,
+proc beginTransaction*(db: Database;
+                       readCollections: seq[string] = @[];
+                       writeCollections: seq[string] = @[];
+                       exclusiveCollections: seq[string] = @[];
+                       waitForSync: bool = false;
+                       allowImplicit: bool = true;
                        lockTimeout: int = 0): Transaction =
   var body = %*{
     "collections": {
@@ -109,4 +111,17 @@ proc abort*(tx: Transaction) =
   discard tx.db.client.doRequestJson("DELETE", "_api/transaction/" & tx.id)
 
 proc id*(tx: Transaction): string = tx.id
+
+proc status*(tx: Transaction): string =
+  ## Query the status of a streaming transaction ("running", "committed", "aborted").
+  let j = tx.db.client.doRequestJson("GET", "_api/transaction/" & tx.id)
+  result = j{"result"}{"status"}.getStr("")
+
+proc runningTransactions*(db: Database): seq[JsonNode] =
+  ## List all running streaming transactions.
+  let j = db.client.doRequestJson("GET", "_api/transaction")
+  result = @[]
+  if j.hasKey("transactions"):
+    for t in j["transactions"].getElems():
+      result.add(t)
 

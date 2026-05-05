@@ -1,6 +1,6 @@
 ## Graph API — vertices, edges, and traversals.
 
-import std/[json, options, strformat, strutils]
+import std/[json, strformat]
 import client, database, types, query
 
 type

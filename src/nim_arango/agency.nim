@@ -1,6 +1,6 @@
 ## Agency API — ArangoDB cluster coordination.
 
-import std/[json, strformat]
+import std/[json]
 import client, types
 
 type

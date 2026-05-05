@@ -1,7 +1,7 @@
 ## Analyzer API — text analysis for ArangoSearch.
 
-import std/[json, options, strformat]
-import client, database, types
+import std/[json]
+import client, types
 
 type
   AnalyzerOption* = proc(cfg: var AnalyzerConfig)
@@ -67,5 +67,31 @@ proc createAnalyzer*(db: Database, name: string, optsArgs: varargs[AnalyzerOptio
     features: features,
   )
 
-proc removeAnalyzer*(db: Database, name: string) =
-  discard db.client.doRequestJson("DELETE", "_api/analyzer/" & name)
+proc removeAnalyzer*(db: Database, name: string, force: bool = false) =
+  ## Remove an analyzer. Set force=true to remove even if in use.
+  var path = "_api/analyzer/" & name
+  if force:
+    path &= "?force=true"
+  discard db.client.doRequestJson("DELETE", path)
+
+proc getAnalyzer*(db: Database, name: string): AnalyzerInfo =
+  ## Get a single analyzer by name.
+  let j = db.client.doRequestJson("GET", "_api/analyzer/" & name)
+  var features: seq[string] = @[]
+  if j.hasKey("features"):
+    for f in j["features"].getElems():
+      features.add(f.getStr())
+  result = AnalyzerInfo(
+    name: j{"name"}.getStr(""),
+    `type`: j{"type"}.getStr(""),
+    properties: j{"properties"},
+    features: features,
+  )
+
+proc analyzerExists*(db: Database, name: string): bool =
+  ## Check if an analyzer exists.
+  try:
+    discard db.client.doRequestJson("GET", "_api/analyzer/" & name)
+    result = true
+  except CatchableError:
+    result = false

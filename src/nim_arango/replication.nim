@@ -1,6 +1,6 @@
 ## Replication API.
 
-import std/[json, strformat]
+import std/[json]
 import client, types
 
 type

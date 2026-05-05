@@ -1,6 +1,6 @@
 ## Prometheus-compatible metrics for nim-arango.
 
-import std/[tables, times, strformat, strutils]
+import std/[tables, strformat, strutils]
 
 type
   Counter* = ref object
@@ -42,7 +42,9 @@ proc observe*(h: Histogram, value: float64) =
   for i, b in h.buckets:
     if value <= b:
       h.counts[i] += 1
-      break
+  # Also count in the +Inf bucket (last one)
+  if h.buckets.len > 0:
+    h.counts[^1] += 1
 
 proc getOrCreateCounter*(name: string, labels: Table[string, string] = initTable[string, string]()): Counter =
   if defaultRegistry == nil:

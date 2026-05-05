@@ -1,6 +1,6 @@
 ## Cluster management API.
 
-import std/[json, strformat]
+import std/[json]
 import client, types
 
 type
@@ -51,3 +51,29 @@ proc rebalanceShards*(c: Client, database: string = ""): JsonNode =
   if database.len > 0:
     body["database"] = %database
   result = c.doRequestJson("PUT", "_api/cluster/rebalanceShards", $body)
+
+proc cleanOutServer*(c: Client, serverID: string): JsonNode =
+  ## Trigger activities to clean out a DBServer from the cluster.
+  let body = %*{"server": serverID}
+  result = c.doRequestJson("PUT", "_api/cluster/cleanOutServer", $body)
+
+proc resignServer*(c: Client, serverID: string): JsonNode =
+  ## Trigger a DBServer to resign all shards.
+  let body = %*{"server": serverID}
+  result = c.doRequestJson("PUT", "_api/cluster/resignServer", $body)
+
+proc isCleanedOut*(c: Client, serverID: string): bool =
+  ## Check if a DBServer has been cleaned out.
+  let j = c.doRequestJson("GET", "_api/cluster/count")
+  if j.hasKey("cleanedServers"):
+    for s in j["cleanedServers"].getElems():
+      if s.getStr("") == serverID:
+        return true
+
+proc removeServer*(c: Client, serverID: string) =
+  ## Low-level removal of a server from the cluster.
+  discard c.doRequestJson("DELETE", "_api/cluster/serverId/" & serverID)
+
+proc databaseInventory*(c: Client, dbName: string): JsonNode =
+  ## Get full cluster inventory of collections, shards, and views for a database.
+  result = c.doRequestJson("GET", "_db/" & dbName & "/_api/replication/clusterInventory")
